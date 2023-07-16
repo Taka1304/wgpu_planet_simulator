@@ -1,0 +1,3 @@
+# wgpu_planet_simulator
+
+wgpuを用いた太陽系シミュレーターCG
