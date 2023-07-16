@@ -152,6 +152,15 @@ pub trait DrawModel<'a> {
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
     );
+
+    fn draw_model_instanced_with_materials(
+        &mut self,
+        model: &'a Model,
+        materials: &[&'a Material],
+        instances: Range<u32>,
+        camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
+    );
 }
 
 impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
@@ -225,6 +234,30 @@ where
                 mesh,
                 material,
                 instances.clone(),
+                camera_bind_group,
+                light_bind_group,
+            );
+        }
+    }
+
+    fn draw_model_instanced_with_materials(
+        &mut self,
+        model: &'b Model,
+        materials: &[&'b Material],
+        instances: Range<u32>,
+        camera_bind_group: &'b wgpu::BindGroup,
+        light_bind_group: &'b wgpu::BindGroup,
+    ) {
+        let mesh = &model.meshes[0]; // 最初のメッシュを使用する
+
+        for instance_index in instances {
+            let material_index = (instance_index as usize) % materials.len();
+            let material = materials[material_index];
+            
+            self.draw_mesh_instanced(
+                mesh,
+                material,
+                instance_index..(instance_index + 1),
                 camera_bind_group,
                 light_bind_group,
             );

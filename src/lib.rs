@@ -18,6 +18,8 @@ mod texture;
 
 use model::{DrawLight, DrawModel, Vertex};
 
+use crate::model::{Material, Model};
+
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
@@ -154,7 +156,7 @@ struct State {
     light_bind_group: wgpu::BindGroup,
     light_render_pipeline: wgpu::RenderPipeline,
     #[allow(dead_code)]
-    debug_material: model::Material,
+    planet_materials: Vec<Material>,
    
     mouse_pressed: bool,
 }
@@ -303,7 +305,6 @@ impl State {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
-                    // normal map(いらない)
                     wgpu::BindGroupLayoutEntry {
                         binding: 2,
                         visibility: wgpu::ShaderStages::FRAGMENT,
@@ -340,9 +341,9 @@ impl State {
 
 
         // インスタンス生成
-        const NUM_INSTANCES_PER_ROW: u32 = 10;      // インスタンス数
-        const SCALE_PLANET: [f32; 10] = [1.0, 0.383, 0.949, 0.5, 0.532, 11.209, 9.449, 4.007, 3.882, 0.187]; // 惑星間の距離
-        const SPACE_PLANET: [f32; 10] = [0.0, 0.39, 0.72, 1.0, 1.52, 5.20, 9.54, 19.18, 30.06, 39.53]; // 惑星の大きさ
+        const NUM_INSTANCES_PER_ROW: u32 = 9;      // インスタンス数
+        const SCALE_PLANET: [f32; 9] = [1.0, 0.383, 0.949, 0.5, 0.532, 11.209, 9.449, 4.007, 3.882]; // 惑星間の距離
+        const SPACE_PLANET: [f32; 9] = [0.0, 0.39, 0.72, 1.0, 1.52, 5.20, 9.54, 19.18, 30.06]; // 惑星の大きさ
 
         let instances = (0..1)      // 無理やり1行にした
             .flat_map(|z| {
@@ -355,14 +356,11 @@ impl State {
                     let position = cgmath::Vector3 { x, y: 0.0, z };
 
                     // 回転させてるけどあんま関係ない
-                    let rotation = if position.is_zero() {
+                    let rotation = 
                         cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_y(),
-                            cgmath::Deg(45.0),
-                        )
-                    } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
-                    };
+                            cgmath::Vector3::unit_x(),
+                            cgmath::Deg(180.0),
+                        );
                     
                     Instance { position, rotation, scale }
                 })
@@ -410,7 +408,7 @@ impl State {
         let light_uniform = LightUniform {
             position: [0.0, 0.0, 0.0],
             _padding: 0,
-            color: [1.0, 1.0, 1.0],
+            color: [1.0, 0.8, 0.8],
             _padding2: 0,
         };
 
@@ -493,34 +491,40 @@ impl State {
             )
         };
 
-        let debug_material = {
-            let diffuse_bytes = include_bytes!("../res/texture/2k_earth_normal_map.tif");
-            let normal_bytes = include_bytes!("../res/texture/2k_earth_daymap.jpg");
-
-            let diffuse_texture = texture::Texture::from_bytes(
-                &device,
-                &queue,
-                diffuse_bytes,
-                "res/alt-diffuse.png",
-                false,
-            )
-            .unwrap();
-            let normal_texture = texture::Texture::from_bytes(
-                &device,
-                &queue,
-                normal_bytes,
-                "res/alt-normal.png",
-                true,
-            )
-            .unwrap();
-
-            model::Material::new(
-                &device,
-                "alt-material",
-                diffuse_texture,
-                normal_texture,
-                &texture_bind_group_layout,
-            )
+        // 各惑星のマテリアルを作成
+        let planet_materials: Vec<_> = {
+            const DIFFUSE_PATHS: [&str; 9] = ["sun.jpg", "mercury.jpg", "venus.jpg", "earth.jpg", "mars.jpg", "jupiter.jpg", "saturn.jpg", "uranus.jpg", "neptune.jpg"];
+            const NORMAL_PATHS: [&str; 9] = ["sun.jpg", "mercury.jpg", "venus.jpg", "earth.jpg", "mars.jpg", "jupiter.jpg", "saturn.jpg", "uranus.jpg", "neptune.jpg"];
+            let materials: Vec<_> = (0..9).map(|i| {
+                let diffuse_image = image::open(&format!("res/texture/2k_{}", DIFFUSE_PATHS[i])).ok().unwrap();
+                let normal_image = image::open(&format!("res/texture/2k_{}", NORMAL_PATHS[i])).ok().unwrap();
+                let diffuse_texture = texture::Texture::from_image(
+                    &device,
+                    &queue,
+                    &diffuse_image,
+                    Some(&format!("res/{}", DIFFUSE_PATHS[i])),
+                    false,
+                )
+                .unwrap();
+                let normal_texture = texture::Texture::from_image(
+                    &device,
+                    &queue,
+                    &normal_image,
+                    Some(&format!("res/{}", NORMAL_PATHS[i])),
+                    true,
+                )
+                .unwrap();
+                let material = model::Material::new(
+                    &device,
+                    &format!("{}-material", DIFFUSE_PATHS[i]),
+                    diffuse_texture,
+                    normal_texture,
+                    &texture_bind_group_layout,
+                );
+                material
+            }).collect::<Vec<_>>();
+        
+            materials
         };
 
         Self {
@@ -546,7 +550,7 @@ impl State {
             light_bind_group,
             light_render_pipeline,
             #[allow(dead_code)]
-            debug_material,
+            planet_materials,
             mouse_pressed: false,
         }
     }
@@ -607,15 +611,14 @@ impl State {
         );
 
         // 惑星の公転
-        const PLANET_PERIOD: [f32; 9] = [0.615, 0.815, 1.000, 1.881, 11.862, 29.457, 84.015, 164.791, 247.920];
-        (1..10).for_each(|i| {
+        const PLANET_PERIOD: [f32; 8] = [0.615, 0.815, 1.000, 1.881, 11.862, 29.457, 84.015, 164.791];
+        (1..PLANET_PERIOD.len()).for_each(|i| {
             let old_position: cgmath::Vector3<_> = self.instances[i].position.into();
             self.instances[i].position = 
-            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1]))
+            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
                     * old_position)
                     .into();
         });
-        // println!("{:?}", &self.instances[1].position);
         let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         self.queue.write_buffer(
             &self.instance_buffer,
@@ -673,15 +676,22 @@ impl State {
                     stencil_ops: None,
                 }),
             });
-
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw_model_instanced(
+            render_pass.draw_model_instanced_with_materials(
                 &self.obj_model,
+                &self.planet_materials.iter().collect::<Vec<_>>(),
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
+            // render_pass.draw_model_instanced_with_material(
+            //     &self.obj_model,
+            //     &self.planet_materials[5],
+            //     0..self.instances.len() as u32,
+            //     &self.camera_bind_group,
+            //     &self.light_bind_group,
+            // );
 
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
