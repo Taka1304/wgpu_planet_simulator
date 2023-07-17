@@ -325,7 +325,7 @@ impl State {
         let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         let projection =
             camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
-        let camera_controller = camera::CameraController::new(6.0, 0.4);
+        let camera_controller = camera::CameraController::new(10.0, 0.4);
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
@@ -336,12 +336,36 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        let camera_bind_group_layout =
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+            label: Some("camera_bind_group_layout"),
+        });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
         // インスタンス生成
         const NUM_INSTANCES_PER_ROW: u32 = 9;      // インスタンス数
-        const SCALE_PLANET: [f32; 9] = [1.0, 0.383, 0.949, 0.5, 0.532, 11.209, 9.449, 4.007, 3.882]; // 惑星間の距離
-        const SPACE_PLANET: [f32; 9] = [0.0, 0.39, 0.72, 1.0, 1.52, 5.20, 9.54, 19.18, 30.06]; // 惑星の大きさ
+        const SCALE_PLANET: [f32; 9] = [1.0, 0.383, 0.949, 0.5, 0.532, 11.209, 9.449, 4.007, 3.882]; // 惑星の大きさ
+        const SPACE_PLANET: [f32; 9] = [0.0, 0.39, 0.72, 1.0, 1.52, 5.20, 9.54, 19.18, 30.06]; // 惑星間の距離
 
-        let instances = (0..1)      // 無理やり1行にした
+        let instances = (0..1)
             .flat_map(|_| {
                 (0..NUM_INSTANCES_PER_ROW).map(move |x| {
                     // 縮尺と位置を決める
@@ -368,30 +392,6 @@ impl State {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("camera_bind_group_layout"),
-            });
-
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-            label: Some("camera_bind_group"),
         });
 
         let sphere_model =
@@ -440,50 +440,6 @@ impl State {
             }],
             label: None,
         });
-
-        // // // 背景のテクスチャを作成
-        // let background_bytes = include_bytes!("../res/texture/milky_way.jpg");
-        // let background_texture = texture::Texture::from_bytes(
-        //     &device,
-        //     &queue,
-        //     background_bytes,
-        //     "8k_stars_milky_way.jpg",
-        //     false,
-        // ).unwrap();
-
-        // let background_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        //     entries: &[wgpu::BindGroupLayoutEntry {
-        //         binding: 0,
-        //         visibility: wgpu::ShaderStages::FRAGMENT,
-        //         ty: wgpu::BindingType::Texture {
-        //             multisampled: false,
-        //             sample_type: wgpu::TextureSampleType::Float { filterable: true },
-        //             view_dimension: wgpu::TextureViewDimension::D2,
-        //         },
-        //         count: None,
-        //     },
-        //     wgpu::BindGroupLayoutEntry {
-        //         binding: 1,
-        //         visibility: wgpu::ShaderStages::FRAGMENT,
-        //         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-        //         count: None,
-        //     }],
-        //     label: Some("background_bind_group_layout"),
-        // });
-        // let background_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        //     layout: &background_bind_group_layout,
-        //     entries: &[
-        //         wgpu::BindGroupEntry {
-        //             binding: 0,
-        //             resource: wgpu::BindingResource::TextureView(&background_texture.view),
-        //         },
-        //         wgpu::BindGroupEntry {
-        //             binding: 1,
-        //             resource: wgpu::BindingResource::Sampler(&background_texture.sampler),
-        //         },
-        //     ],
-        //     label: Some("texture_bind_group"),
-        // });
 
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
@@ -606,7 +562,6 @@ impl State {
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        // UPDATED!
         if new_size.width > 0 && new_size.height > 0 {
             self.projection.resize(new_size.width, new_size.height);
             self.size = new_size;
@@ -618,7 +573,6 @@ impl State {
         }
     }
 
-    // UPDATED!
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::KeyboardInput {
@@ -677,17 +631,6 @@ impl State {
             bytemuck::cast_slice(&instance_data),
         );
 
-        // Update the light
-        // let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
-        // self.light_uniform.position =
-        //     (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
-        //         * old_position)
-        //         .into();
-        // self.queue.write_buffer(
-        //     &self.light_buffer,
-        //     0,
-        //     bytemuck::cast_slice(&[self.light_uniform]),
-        // );
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -713,7 +656,7 @@ impl State {
                             r: 0.0,
                             g: 0.0,
                             b: 0.0,
-                            a: 1.0,
+                            a: 0.0,
                         }),
                         store: true,
                     },
