@@ -35,7 +35,6 @@ impl CameraUniform {
         }
     }
 
-    // UPDATED!
     fn update_view_proj(&mut self, camera: &camera::Camera, projection: &camera::Projection) {
         self.view_position = camera.position.to_homogeneous().into();
         self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into()
@@ -151,7 +150,6 @@ struct State {
     instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
     size: winit::dpi::PhysicalSize<u32>,
-    // texture_bind_group: wgpu::BindGroup,
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
@@ -321,22 +319,6 @@ impl State {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
-                    // wgpu::BindGroupLayoutEntry {
-                    //     binding: 4,
-                    //     visibility: wgpu::ShaderStages::FRAGMENT,
-                    //     ty: wgpu::BindingType::Texture {
-                    //         multisampled: false,
-                    //         sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    //         view_dimension: wgpu::TextureViewDimension::D2,
-                    //     },
-                    //     count: None,
-                    // },
-                    // wgpu::BindGroupLayoutEntry {
-                    //     binding: 5,
-                    //     visibility: wgpu::ShaderStages::FRAGMENT,
-                    //     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    //     count: None,
-                    // },
                 ],
                 label: Some("texture_bind_group_layout"),
             });
@@ -389,8 +371,6 @@ impl State {
             contents: bytemuck::cast_slice(&instance_data),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
-
-
 
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -459,29 +439,48 @@ impl State {
         });
 
         // // 背景のテクスチャを作成
-        // let background_bytes = include_bytes!("../res/texture/8k_stars_milky_way.jpg");
-        // let background_texture = texture::Texture::from_bytes(
-        //     &device,
-        //     &queue,
-        //     background_bytes,
-        //     "8k_stars_milky_way.jpg",
-        //     false,
-        // ).unwrap();
-        // let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        //     layout: &texture_bind_group_layout,
-        //     entries: &[
-                
-        //         wgpu::BindGroupEntry {
-        //             binding: 4,
-        //             resource: wgpu::BindingResource::TextureView(&background_texture.view),
-        //         },
-        //         wgpu::BindGroupEntry {
-        //             binding: 5,
-        //             resource: wgpu::BindingResource::Sampler(&background_texture.sampler),
-        //         },
-        //     ],
-        //     label: Some("texture_bind_group"),
-        // });
+        let background_bytes = include_bytes!("../res/texture/milky_way.jpg");
+        let background_texture = texture::Texture::from_bytes(
+            &device,
+            &queue,
+            background_bytes,
+            "8k_stars_milky_way.jpg",
+            false,
+        ).unwrap();
+
+        let background_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            }],
+            label: Some("background_bind_group_layout"),
+        });
+        let background_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &background_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&background_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&background_texture.sampler),
+                },
+            ],
+            label: Some("texture_bind_group"),
+        });
 
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
@@ -534,11 +533,11 @@ impl State {
 
         // 各惑星のマテリアルを作成
         let planet_materials: Vec<_> = {
-            const DIFFUSE_PATHS: [&str; 9] = ["sun.jpg", "mercury.jpg", "venus.jpg", "earth.jpg", "mars.jpg", "jupiter.jpg", "saturn.jpg", "uranus.jpg", "neptune.jpg"];
-            const NORMAL_PATHS: [&str; 9] = ["sun.jpg", "mercury.jpg", "venus.jpg", "earth.jpg", "mars.jpg", "jupiter.jpg", "saturn.jpg", "uranus.jpg", "neptune.jpg"];
+            const DIFFUSE_PATHS: [&str; 9] = ["sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"];
+            const NORMAL_PATHS: [&str; 9] = ["sun.jpg", "normal.jpg", "normal.jpg", "earth_normal.tif", "mars_normal.jpg", "normal.jpg","normal.jpg","normal.jpg","normal.jpg"];
             let materials: Vec<_> = (0..9).map(|i| {
-                let diffuse_image = image::open(&format!("res/texture/2k_{}", DIFFUSE_PATHS[i])).ok().unwrap();
-                let normal_image = image::open(&format!("res/texture/2k_{}", NORMAL_PATHS[i])).ok().unwrap();
+                let diffuse_image = image::open(&format!("res/texture/{}.jpg", DIFFUSE_PATHS[i])).ok().unwrap();
+                let normal_image = image::open(&format!("res/texture/{}", NORMAL_PATHS[i])).ok().unwrap();
                 let diffuse_texture = texture::Texture::from_image(
                     &device,
                     &queue,
@@ -592,7 +591,6 @@ impl State {
             light_render_pipeline,
             #[allow(dead_code)]
             planet_materials,
-            // texture_bind_group,
             mouse_pressed: false,
         }
     }
@@ -653,12 +651,17 @@ impl State {
         );
 
         // 惑星の公転
+        const PLANET_ROTATION: [f32; 8] = [0.24, 0.61, 1.0, 1.03, 0.41, 0.43, 0.72, 0.67];
         const PLANET_PERIOD: [f32; 8] = [0.615, 0.815, 1.000, 1.881, 11.862, 29.457, 84.015, 164.791];
         (1..PLANET_PERIOD.len()).for_each(|i| {
             let old_position: cgmath::Vector3<_> = self.instances[i].position.into();
             self.instances[i].position = 
             (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
                     * old_position)
+                    .into();
+            self.instances[i].rotation = 
+            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(PLANET_ROTATION[i - 1]))
+                    * self.instances[i].rotation)
                     .into();
         });
         let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();

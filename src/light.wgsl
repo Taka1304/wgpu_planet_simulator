@@ -33,7 +33,7 @@ struct VertexOutput {
 fn vs_main(
     model: VertexInput,   // 入力モデル情報
 ) -> VertexOutput {
-    let scale = 0.1;   // スケール係数
+    let scale = 0.08;   // スケール係数
     var out: VertexOutput;   // 出力情報を格納する変数
     out.clip_position = camera.view_proj * vec4<f32>(model.position * scale + light.position, 1.0);   // クリップ座標系での位置を計算
     out.color = light.color;   // 出力色を光源の色に設定
