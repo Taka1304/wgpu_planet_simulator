@@ -138,7 +138,8 @@ struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     render_pipeline: wgpu::RenderPipeline,
-    obj_model: model::Model,
+    sphere_model: model::Model,
+    ring_model: model::Model,
     camera: camera::Camera,                      
     projection: camera::Projection,             
     camera_controller: camera::CameraController, 
@@ -150,8 +151,6 @@ struct State {
     instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
     size: winit::dpi::PhysicalSize<u32>,
-    light_uniform: LightUniform,
-    light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
     light_render_pipeline: wgpu::RenderPipeline,
     #[allow(dead_code)]
@@ -395,8 +394,13 @@ impl State {
             label: Some("camera_bind_group"),
         });
 
-        let obj_model =
+        let sphere_model =
             resources::load_model("sphere.obj", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
+
+        let ring_model =
+            resources::load_model("ring.obj", &device, &queue, &texture_bind_group_layout)
                 .await
                 .unwrap();
 
@@ -573,7 +577,8 @@ impl State {
             queue,
             config,
             render_pipeline,
-            obj_model,
+            sphere_model,
+            ring_model,
             camera,
             projection,
             camera_controller,
@@ -584,8 +589,6 @@ impl State {
             instance_buffer,
             depth_texture,
             size,
-            light_uniform,
-            light_buffer,
             light_bind_group,
             light_render_pipeline,
             #[allow(dead_code)]
@@ -649,7 +652,7 @@ impl State {
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
 
-        // 惑星の公転
+        // 惑星の自転・公転
         const PLANET_ROTATION: [f32; 8] = [0.24, 0.61, 1.0, 1.03, 0.41, 0.43, 0.72, 0.67];
         const PLANET_PERIOD: [f32; 8] = [0.615, 0.815, 1.000, 1.881, 11.862, 29.457, 84.015, 164.791];
         (1..PLANET_PERIOD.len()).for_each(|i| {
@@ -723,16 +726,22 @@ impl State {
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.draw_model_instanced_with_materials(
-                &self.obj_model,
+                &self.sphere_model,
                 &self.planet_materials.iter().collect::<Vec<_>>(),
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
-
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.draw_model_instanced(
+                &self.ring_model,
+                6..7,   // 土星に紐づける
+                &self.camera_bind_group,
+                &self.light_bind_group,
+            );
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
-                &self.obj_model,
+                &self.sphere_model,
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
