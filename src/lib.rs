@@ -1,12 +1,19 @@
-use std::iter;
+use std::ops::Deref;
+use std::{iter, cell::Ref};
+use std::cell::RefCell;
 
 use cgmath::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::Window,
+    window::{Window, self},
 };
+
+use imgui::{Condition, Context, FontSource};
+use imgui_wgpu::{Renderer, RendererConfig};
+use imgui_winit_support::WinitPlatform;
+
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -131,8 +138,32 @@ struct LightUniform {
     _padding2: u32,
 }
 
+struct ImguiState {
+    imgui: Context,
+    platform: WinitPlatform,
+    renderer: Renderer,
+}
+
+impl ImguiState {
+    fn new(window: &Window, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+        let mut imgui = Context::create();
+        let mut platform = WinitPlatform::init(&mut imgui);
+        platform.attach_window(imgui.io_mut(), window, imgui_winit_support::HiDpiMode::Default);
+        let renderer_config = RendererConfig {
+            ..Default::default()
+        };
+        let renderer = Renderer::new(&mut imgui, &device, &queue, renderer_config);
+        Self {
+            imgui,
+            platform,
+            renderer,
+        }
+    }
+}
+
 struct State {
-    window: Window,
+    window: RefCell<Window>,
+    imgui_state: ImguiState,
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -530,8 +561,11 @@ impl State {
             materials
         };
 
+        let imgui_state = ImguiState::new(&window, &device, &queue);
+
         Self {
-            window,
+            window: RefCell::new(window),
+            imgui_state,
             surface,
             device,
             queue,
@@ -557,8 +591,8 @@ impl State {
         }
     }
 
-    pub fn window(&self) -> &Window {
-        &self.window
+    pub fn window(&self) -> Ref<Window> {
+        self.window.borrow()
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -638,13 +672,19 @@ impl State {
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-
+    
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-
+    
+        // self.imgui_state.platform.prepare_frame(self.imgui_state.imgui.io_mut(), &self.window.borrow())
+        //     .expect("Failed to prepare frame");
+        // let ui = self.imgui_state.imgui.frame();
+        
+        // self.imgui_state.platform.prepare_render(&ui, &self.window.borrow());
+    
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -693,13 +733,17 @@ impl State {
                 &self.light_bind_group,
                 Some(&self.planet_materials[0].bind_group),
             );
+            // self.imgui_state.renderer
+            //     .render(self.imgui_state.imgui.render(), &self.queue, &self.device, &mut render_pass)
+            //     .expect("Rendering failed");
         }
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
-
+    
         Ok(())
-    }
+    }    
 }
+
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
@@ -737,8 +781,34 @@ pub async fn run() {
             })
             .expect("Couldn't append canvas to document body.");
     }
+    // let hidpi_factor = window.scale_factor();
+    // let mut imgui = imgui::Context::create();
+    // let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
+    // platform.attach_window(
+    //     imgui.io_mut(),
+    //     &window,
+    //     imgui_winit_support::HiDpiMode::Default,
+    // );
+    // imgui.set_ini_filename(None);
+
+    // let font_size = (13.0 * hidpi_factor) as f32;
+    // imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+
+    // imgui.fonts().add_font(&[FontSource::DefaultFontData {
+    //     config: Some(imgui::FontConfig {
+    //         oversample_h: 1,
+    //         pixel_snap_h: true,
+    //         size_pixels: font_size,
+    //         ..Default::default()
+    //     }),
+    // }]);
+    // let renderer_config = RendererConfig {
+    //     ..Default::default()
+    // };
 
     let mut state = State::new(window).await;
+    // let mut renderer = Renderer::new(&mut imgui, &state.device, &state.queue, renderer_config);
+
     let mut last_render_time = instant::Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -779,10 +849,49 @@ pub async fn run() {
             }
 
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
+                let delta_s = last_render_time.elapsed();
                 let now = instant::Instant::now();
                 let dt = now - last_render_time;
+                let mut demo_open = true;
+
+                state.imgui_state.imgui.io_mut().update_delta_time(dt);
                 last_render_time = now;
                 state.update(dt);
+                
+                let window_ref = state.window.borrow();
+                let window = window_ref.deref();
+                
+                state.imgui_state.platform
+                    .prepare_frame(state.imgui_state.imgui.io_mut(), &window)
+                    .expect("Failed to prepare frame");
+                drop(window_ref);
+                let ui = state.imgui_state.imgui.frame();
+                
+                {
+                    let window = ui.window("Hello world");
+                        window
+                        .size([300.0, 100.0], Condition::FirstUseEver)
+                        .build(|| {
+                            ui.text("Hello world!");
+                            ui.text("This...is...imgui-rs on WGPU!");
+                            ui.separator();
+                                let mouse_pos = ui.io().mouse_pos;
+                                ui.text(format!(
+                                    "Mouse Position: ({:.1},{:.1})",
+                                    mouse_pos[0], mouse_pos[1]
+                                ));
+                        });
+                        
+                        let window = ui.window("Hello too");
+                        window
+                        .size([400.0, 200.0], Condition::FirstUseEver)
+                        .position([400.0, 200.0], Condition::FirstUseEver)
+                        .build(|| {
+                            ui.text(format!("Frametime: {delta_s:?}"));
+                        });
+                        
+                        ui.show_demo_window(&mut demo_open);
+                }
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if it's lost or outdated
@@ -792,6 +901,52 @@ pub async fn run() {
                     // We're ignoring timeouts
                     Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
                 }
+                let output = match state.surface.get_current_texture() {
+                    Ok(frame) => frame,
+                    Err(e) => {
+                        eprintln!("dropped frame: {e:?}");
+                        return;
+                    }
+                };
+                let intermediate_texture = state.device.create_texture(&wgpu::TextureDescriptor {
+                    size: output.texture.size(),
+                    mip_level_count: output.texture.mip_level_count(),
+                    sample_count: output.texture.sample_count(),
+                    dimension: output.texture.dimension(),
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    label: Some("Intermediate Texture"),
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                    view_formats: &[],
+                });
+                let view = intermediate_texture.create_view(&wgpu::TextureViewDescriptor {
+                    format: Some(wgpu::TextureFormat::Rgba8Unorm),
+                    ..Default::default()
+                });
+                let mut encoder: wgpu::CommandEncoder =
+                state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+                
+                let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: None,
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: true,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                    });
+    
+                state.imgui_state.renderer
+                    .render(state.imgui_state.imgui.render(), &state.queue, &state.device, &mut rpass)
+                    .expect("Rendering failed");
+
+                drop(rpass);
+
+                state.queue.submit(Some(encoder.finish()));
+                output.present();
+                    
             }
             _ => {}
         }
