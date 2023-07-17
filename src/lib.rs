@@ -1,6 +1,6 @@
 use std::iter;
 
-use cgmath::prelude::*;
+use cgmath::{prelude::*, Vector3};
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -361,9 +361,9 @@ impl State {
         });
 
         // インスタンス生成
-        const NUM_INSTANCES_PER_ROW: u32 = 9;      // インスタンス数
-        const SCALE_PLANET: [f32; 9] = [1.0, 0.383, 0.949, 0.5, 0.532, 11.209, 9.449, 4.007, 3.882]; // 惑星の大きさ
-        const SPACE_PLANET: [f32; 9] = [0.0, 0.39, 0.72, 1.0, 1.52, 5.20, 9.54, 19.18, 30.06]; // 惑星間の距離
+        const NUM_INSTANCES_PER_ROW: u32 = 10;      // インスタンス数
+        const SCALE_PLANET: [f32; 10] = [1.0, 0.383, 0.949, 0.5, 0.532, 11.209, 9.449, 4.007, 3.882, 0.125]; // 惑星の大きさ
+        const SPACE_PLANET: [f32; 10] = [0.0, 0.39, 0.72, 1.0, 1.52, 5.20, 9.54, 19.18, 30.06, 1.15]; // 惑星間の距離
 
         let instances = (0..1)
             .flat_map(|_| {
@@ -496,9 +496,9 @@ impl State {
 
         // 各惑星のマテリアルを作成
         let planet_materials: Vec<_> = {
-            const DIFFUSE_PATHS: [&str; 9] = ["sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"];
-            const NORMAL_PATHS: [&str; 9] = ["sun.jpg", "normal.jpg", "normal.jpg", "earth_normal.tif", "mars_normal.jpg", "normal.jpg","normal.jpg","normal.jpg","normal.jpg"];
-            let materials: Vec<_> = (0..9).map(|i| {
+            const DIFFUSE_PATHS: [&str; 10] = ["sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "moon"];
+            const NORMAL_PATHS: [&str; 10] = ["sun.jpg", "normal.jpg", "normal.jpg", "earth_normal.tif", "mars_normal.jpg", "normal.jpg","normal.jpg","normal.jpg","normal.jpg", "normal.jpg"];
+            let materials: Vec<_> = (0..10).map(|i| {
                 let diffuse_image = image::open(&format!("res/texture/{}.jpg", DIFFUSE_PATHS[i])).ok().unwrap();
                 let normal_image = image::open(&format!("res/texture/{}", NORMAL_PATHS[i])).ok().unwrap();
                 let diffuse_texture = texture::Texture::from_image(
@@ -610,15 +610,33 @@ impl State {
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
 
-        // 惑星の自転・公転
-        const PLANET_ROTATION: [f32; 8] = [0.24, 0.61, 1.0, 1.03, 0.41, 0.43, 0.72, 0.67];
-        const PLANET_PERIOD: [f32; 8] = [0.615, 0.815, 1.000, 1.881, 11.862, 29.457, 84.015, 164.791];
-        (1..PLANET_PERIOD.len()).for_each(|i| {
+        // 惑星の自転・公転(地球を1としたときの比率)
+        // simulatorとは(哲学)
+        const PLANET_ROTATION: [f32; 9] = [0.24, 0.61, 1.0, 1.03, 0.41, 0.43, 0.72, 0.67, 27.3];
+        const PLANET_PERIOD: [f32; 9] = [0.615, 0.815, 1.000, 1.881, 11.862, 29.457, 84.015, 164.791, 7.3];
+        (1..PLANET_PERIOD.len() + 1).for_each(|i| {
+            
             let old_position: cgmath::Vector3<_> = self.instances[i].position.into();
-            self.instances[i].position = 
-            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
-                    * old_position)
+            self.instances[i].position = if i == 3 { // 地球の場合
+                // 月の分も計算する
+                let moon_pos: cgmath::Vector3<_> = self.instances[9].position.into();
+                self.instances[9].position = 
+                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
+                    * moon_pos)
                     .into();
+
+                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
+                    * old_position)
+                    .into()
+            } else if i == 9 {
+                (cgmath::Quaternion::from_axis_angle(Vector3::unit_y().cross(self.instances[3].position).normalize(), cgmath::Rad(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
+                * old_position)
+                .into()
+            } else {
+                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
+                * old_position)
+                .into()
+            };
             self.instances[i].rotation = 
             (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(PLANET_ROTATION[i - 1]))
                     * self.instances[i].rotation)
