@@ -18,7 +18,7 @@ mod texture;
 
 use model::{DrawLight, DrawModel, Vertex};
 
-use crate::model::{Material, Model};
+use crate::model::Material;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -342,7 +342,7 @@ impl State {
         const SPACE_PLANET: [f32; 9] = [0.0, 0.39, 0.72, 1.0, 1.52, 5.20, 9.54, 19.18, 30.06]; // 惑星の大きさ
 
         let instances = (0..1)      // 無理やり1行にした
-            .flat_map(|z| {
+            .flat_map(|_| {
                 (0..NUM_INSTANCES_PER_ROW).map(move |x| {
                     // 縮尺と位置を決める
                     let scale = SCALE_PLANET[x as usize] * 0.1;
@@ -517,7 +517,11 @@ impl State {
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
+                bind_group_layouts: &[
+                    &camera_bind_group_layout,
+                    &light_bind_group_layout,
+                    &texture_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
             let shader = wgpu::ShaderModuleDescriptor {
@@ -744,6 +748,7 @@ impl State {
                 &self.sphere_model,
                 &self.camera_bind_group,
                 &self.light_bind_group,
+                Some(&self.planet_materials[0].bind_group),
             );
         }
         self.queue.submit(iter::once(encoder.finish()));

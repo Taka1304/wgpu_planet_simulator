@@ -21,7 +21,7 @@ tobj = { version = "3.2.5", features = [
     "async",
 ]}
 instant = "0.1"
-pollster="0.3"
+pollster = "0.3"
 
 [dependencies.image]
 version = "0.24"

@@ -271,6 +271,7 @@ pub trait DrawLight<'a> {
         mesh: &'a Mesh,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
+        material_bind_group: Option<&'a wgpu::BindGroup>,
     );
     fn draw_light_mesh_instanced(
         &mut self,
@@ -278,6 +279,7 @@ pub trait DrawLight<'a> {
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
+        material_bind_group: Option<&'a wgpu::BindGroup>,
     );
 
     fn draw_light_model(
@@ -285,6 +287,7 @@ pub trait DrawLight<'a> {
         model: &'a Model,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
+        material_bind_group: Option<&'a wgpu::BindGroup>,
     );
     fn draw_light_model_instanced(
         &mut self,
@@ -292,6 +295,7 @@ pub trait DrawLight<'a> {
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
+        material_bind_group: Option<&'a wgpu::BindGroup>,
     );
 }
 
@@ -304,8 +308,9 @@ where
         mesh: &'b Mesh,
         camera_bind_group: &'b wgpu::BindGroup,
         light_bind_group: &'b wgpu::BindGroup,
+        material_bind_group: Option<&'b wgpu::BindGroup>,
     ) {
-        self.draw_light_mesh_instanced(mesh, 0..1, camera_bind_group, light_bind_group);
+        self.draw_light_mesh_instanced(mesh, 0..1, camera_bind_group, light_bind_group, material_bind_group);
     }
 
     fn draw_light_mesh_instanced(
@@ -314,21 +319,35 @@ where
         instances: Range<u32>,
         camera_bind_group: &'b wgpu::BindGroup,
         light_bind_group: &'b wgpu::BindGroup,
+        material_bind_group: Option<&'b wgpu::BindGroup>, // マテリアル用のバインドグループを追加
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, camera_bind_group, &[]);
         self.set_bind_group(1, light_bind_group, &[]);
+        
+        if let Some(material_bind_group) = material_bind_group {
+            self.set_bind_group(2, material_bind_group, &[]); // マテリアル用のバインドグループを設定
+        }
+        
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
+    
 
     fn draw_light_model(
         &mut self,
         model: &'b Model,
         camera_bind_group: &'b wgpu::BindGroup,
         light_bind_group: &'b wgpu::BindGroup,
+        material_bind_group: Option<&'b wgpu::BindGroup>,
     ) {
-        self.draw_light_model_instanced(model, 0..1, camera_bind_group, light_bind_group);
+        self.draw_light_model_instanced(
+            model, 
+            0..1, 
+            camera_bind_group, 
+            light_bind_group,
+            material_bind_group,
+        );
     }
     fn draw_light_model_instanced(
         &mut self,
@@ -336,6 +355,7 @@ where
         instances: Range<u32>,
         camera_bind_group: &'b wgpu::BindGroup,
         light_bind_group: &'b wgpu::BindGroup,
+        material_bind_group: Option<&'b wgpu::BindGroup>,
     ) {
         for mesh in &model.meshes {
             self.draw_light_mesh_instanced(
@@ -343,6 +363,7 @@ where
                 instances.clone(),
                 camera_bind_group,
                 light_bind_group,
+                material_bind_group,
             );
         }
     }
