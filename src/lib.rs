@@ -353,7 +353,7 @@ impl State {
 
                     let position = cgmath::Vector3 { x, y: 0.0, z };
 
-                    // 回転させてるけどあんま関係ない
+                    // 上下反転(ごり押し)
                     let rotation = 
                         cgmath::Quaternion::from_axis_angle(
                             cgmath::Vector3::unit_x(),
@@ -438,49 +438,49 @@ impl State {
             label: None,
         });
 
-        // // 背景のテクスチャを作成
-        let background_bytes = include_bytes!("../res/texture/milky_way.jpg");
-        let background_texture = texture::Texture::from_bytes(
-            &device,
-            &queue,
-            background_bytes,
-            "8k_stars_milky_way.jpg",
-            false,
-        ).unwrap();
+        // // // 背景のテクスチャを作成
+        // let background_bytes = include_bytes!("../res/texture/milky_way.jpg");
+        // let background_texture = texture::Texture::from_bytes(
+        //     &device,
+        //     &queue,
+        //     background_bytes,
+        //     "8k_stars_milky_way.jpg",
+        //     false,
+        // ).unwrap();
 
-        let background_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            }],
-            label: Some("background_bind_group_layout"),
-        });
-        let background_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &background_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&background_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&background_texture.sampler),
-                },
-            ],
-            label: Some("texture_bind_group"),
-        });
+        // let background_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //     entries: &[wgpu::BindGroupLayoutEntry {
+        //         binding: 0,
+        //         visibility: wgpu::ShaderStages::FRAGMENT,
+        //         ty: wgpu::BindingType::Texture {
+        //             multisampled: false,
+        //             sample_type: wgpu::TextureSampleType::Float { filterable: true },
+        //             view_dimension: wgpu::TextureViewDimension::D2,
+        //         },
+        //         count: None,
+        //     },
+        //     wgpu::BindGroupLayoutEntry {
+        //         binding: 1,
+        //         visibility: wgpu::ShaderStages::FRAGMENT,
+        //         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+        //         count: None,
+        //     }],
+        //     label: Some("background_bind_group_layout"),
+        // });
+        // let background_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        //     layout: &background_bind_group_layout,
+        //     entries: &[
+        //         wgpu::BindGroupEntry {
+        //             binding: 0,
+        //             resource: wgpu::BindingResource::TextureView(&background_texture.view),
+        //         },
+        //         wgpu::BindGroupEntry {
+        //             binding: 1,
+        //             resource: wgpu::BindingResource::Sampler(&background_texture.sampler),
+        //         },
+        //     ],
+        //     label: Some("texture_bind_group"),
+        // });
 
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
