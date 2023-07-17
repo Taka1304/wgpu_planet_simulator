@@ -9,11 +9,11 @@ pub trait Vertex {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ModelVertex {
-    pub position: [f32; 3],
-    pub tex_coords: [f32; 2],
-    pub normal: [f32; 3],
-    pub tangent: [f32; 3],
-    pub bitangent: [f32; 3],
+    pub position: [f32; 3],   // 頂点の位置情報
+    pub tex_coords: [f32; 2],   // 頂点のテクスチャ座標情報
+    pub normal: [f32; 3],   // 頂点の法線ベクトル情報
+    pub tangent: [f32; 3],   // 頂点の接線ベクトル情報
+    pub bitangent: [f32; 3],   // 頂点の従法線ベクトル情報
 }
 
 impl Vertex for ModelVertex {
@@ -38,7 +38,7 @@ impl Vertex for ModelVertex {
                     shader_location: 2,
                     format: wgpu::VertexFormat::Float32x3,
                 },
-                // Tangent and bitangent
+                // 接線ベクトルと従法線ベクトル
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
                     shader_location: 3,
@@ -55,10 +55,10 @@ impl Vertex for ModelVertex {
 }
 
 pub struct Material {
-    pub name: String,
-    pub diffuse_texture: texture::Texture,
-    pub normal_texture: texture::Texture,
-    pub bind_group: wgpu::BindGroup,
+    pub name: String,   // マテリアルの名前
+    pub diffuse_texture: texture::Texture,   // ディフューズテクスチャ
+    pub normal_texture: texture::Texture,   // 法線テクスチャ
+    pub bind_group: wgpu::BindGroup,   // バインドグループ
 }
 
 impl Material {
@@ -102,16 +102,16 @@ impl Material {
 }
 
 pub struct Mesh {
-    pub name: String,
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
-    pub num_elements: u32,
-    pub material: usize,
+    pub name: String,   // メッシュの名前
+    pub vertex_buffer: wgpu::Buffer,   // 頂点バッファ
+    pub index_buffer: wgpu::Buffer,   // インデックスバッファ
+    pub num_elements: u32,   // 要素の数
+    pub material: usize,   // マテリアルのインデックス
 }
 
 pub struct Model {
-    pub meshes: Vec<Mesh>,
-    pub materials: Vec<Material>,
+    pub meshes: Vec<Mesh>,   // メッシュのリスト
+    pub materials: Vec<Material>,   // マテリアルのリスト
 }
 
 pub trait DrawModel<'a> {

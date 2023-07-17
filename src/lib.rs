@@ -151,13 +151,13 @@ struct State {
     instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
     size: winit::dpi::PhysicalSize<u32>,
+    // texture_bind_group: wgpu::BindGroup,
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
     light_render_pipeline: wgpu::RenderPipeline,
     #[allow(dead_code)]
     planet_materials: Vec<Material>,
-   
     mouse_pressed: bool,
 }
 
@@ -321,6 +321,22 @@ impl State {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
+                    // wgpu::BindGroupLayoutEntry {
+                    //     binding: 4,
+                    //     visibility: wgpu::ShaderStages::FRAGMENT,
+                    //     ty: wgpu::BindingType::Texture {
+                    //         multisampled: false,
+                    //         sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    //         view_dimension: wgpu::TextureViewDimension::D2,
+                    //     },
+                    //     count: None,
+                    // },
+                    // wgpu::BindGroupLayoutEntry {
+                    //     binding: 5,
+                    //     visibility: wgpu::ShaderStages::FRAGMENT,
+                    //     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    //     count: None,
+                    // },
                 ],
                 label: Some("texture_bind_group_layout"),
             });
@@ -442,6 +458,31 @@ impl State {
             label: None,
         });
 
+        // // 背景のテクスチャを作成
+        // let background_bytes = include_bytes!("../res/texture/8k_stars_milky_way.jpg");
+        // let background_texture = texture::Texture::from_bytes(
+        //     &device,
+        //     &queue,
+        //     background_bytes,
+        //     "8k_stars_milky_way.jpg",
+        //     false,
+        // ).unwrap();
+        // let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        //     layout: &texture_bind_group_layout,
+        //     entries: &[
+                
+        //         wgpu::BindGroupEntry {
+        //             binding: 4,
+        //             resource: wgpu::BindingResource::TextureView(&background_texture.view),
+        //         },
+        //         wgpu::BindGroupEntry {
+        //             binding: 5,
+        //             resource: wgpu::BindingResource::Sampler(&background_texture.sampler),
+        //         },
+        //     ],
+        //     label: Some("texture_bind_group"),
+        // });
+
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
@@ -551,6 +592,7 @@ impl State {
             light_render_pipeline,
             #[allow(dead_code)]
             planet_materials,
+            // texture_bind_group,
             mouse_pressed: false,
         }
     }
@@ -659,9 +701,9 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
                             a: 1.0,
                         }),
                         store: true,
