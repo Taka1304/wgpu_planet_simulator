@@ -2248,32 +2248,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wgpu-cg"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytemuck",
- "cfg-if",
- "cgmath",
- "console_error_panic_hook",
- "console_log",
- "env_logger",
- "fs_extra",
- "glob",
- "image",
- "instant",
- "log",
- "pollster",
- "reqwest",
- "tobj",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "wgpu-core"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2347,6 +2321,32 @@ dependencies = [
  "bitflags 2.3.3",
  "js-sys",
  "web-sys",
+]
+
+[[package]]
+name = "wgpu_planet_simulator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "cfg-if",
+ "cgmath",
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "fs_extra",
+ "glob",
+ "image",
+ "instant",
+ "log",
+ "pollster",
+ "reqwest",
+ "tobj",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]

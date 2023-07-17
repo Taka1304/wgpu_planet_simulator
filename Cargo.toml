@@ -1,5 +1,5 @@
 [package]
-name = "wgpu-cg"
+name = "wgpu_planet_simulator"
 version = "0.1.0"
 edition = "2021"
 
@@ -48,5 +48,5 @@ fs_extra = "1.2"
 glob = "0.3"
 
 [[bin]]
-name = "wgpu-cg"
+name = "wgpu_planet_simulator"
 path = "src/main.rs"

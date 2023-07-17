@@ -94,7 +94,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let object_normal: vec4<f32> = textureSample(t_normal, s_normal, in.tex_coords);
     
     // Calculate the ambient color
-    let ambient_strength = 0.001;   // ちょっとだけ環境光を入れる
+    let ambient_strength = 0.01;
     let ambient_color = light.color * ambient_strength;
 
     // Create the lighting vectors

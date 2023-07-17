@@ -337,7 +337,6 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-
         // インスタンス生成
         const NUM_INSTANCES_PER_ROW: u32 = 9;      // インスタンス数
         const SCALE_PLANET: [f32; 9] = [1.0, 0.383, 0.949, 0.5, 0.532, 11.209, 9.449, 4.007, 3.882]; // 惑星間の距離
@@ -730,13 +729,6 @@ impl State {
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
-            // render_pass.draw_model_instanced_with_material(
-            //     &self.obj_model,
-            //     &self.planet_materials[5],
-            //     0..self.instances.len() as u32,
-            //     &self.camera_bind_group,
-            //     &self.light_bind_group,
-            // );
 
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
@@ -802,7 +794,7 @@ pub async fn run() {
             } => if state.mouse_pressed {
                 state.camera_controller.process_mouse(delta.0, delta.1)
             }
-            // UPDATED!
+
             Event::WindowEvent {
                 ref event,
                 window_id,
@@ -828,7 +820,7 @@ pub async fn run() {
                     _ => {}
                 }
             }
-            // UPDATED!
+
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
                 let now = instant::Instant::now();
                 let dt = now - last_render_time;
