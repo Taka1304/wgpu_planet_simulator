@@ -1,6 +1,6 @@
 use std::iter;
 
-use cgmath::{prelude::*, Vector3};
+use cgmath::{prelude::*, Vector3, Deg, Matrix4};
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -613,27 +613,37 @@ impl State {
         // 惑星の自転・公転(地球を1としたときの比率)
         // simulatorとは(哲学)
         const PLANET_ROTATION: [f32; 9] = [0.24, 0.61, 1.0, 1.03, 0.41, 0.43, 0.72, 0.67, 27.3];
-        const PLANET_PERIOD: [f32; 9] = [0.615, 0.815, 1.000, 1.881, 11.862, 29.457, 84.015, 164.791, 7.3];
+        const PLANET_PERIOD: [f32; 9] = [0.615, 0.815, 1.000, 1.881, 11.862, 29.457, 84.015, 164.791, 0.073];
         (1..PLANET_PERIOD.len() + 1).for_each(|i| {
-            
+            let angle = cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 100.0);
             let old_position: cgmath::Vector3<_> = self.instances[i].position.into();
             self.instances[i].position = if i == 3 { // 地球の場合
                 // 月の分も計算する
                 let moon_pos: cgmath::Vector3<_> = self.instances[9].position.into();
                 self.instances[9].position = 
-                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
+                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), angle)
                     * moon_pos)
                     .into();
 
-                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
+                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), angle)
                     * old_position)
                     .into()
-            } else if i == 9 {
-                (cgmath::Quaternion::from_axis_angle(Vector3::unit_y().cross(self.instances[3].position).normalize(), cgmath::Rad(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
-                * old_position)
-                .into()
-            } else {
-                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(std::f32::consts::PI * 2.0 / PLANET_PERIOD[i - 1] / 3.0))
+            } 
+            else if i == 9 {
+                let mut vector = self.instances[9].position - self.instances[3].position;
+
+                vector =
+                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), angle)
+                    * vector).into();
+                vector += self.instances[3].position;
+                
+                self.instances[9].position = vector.into();
+
+                self.instances[9].position
+            
+            }
+             else {
+                (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), angle)
                 * old_position)
                 .into()
             };
